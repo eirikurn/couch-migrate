@@ -1,0 +1,30 @@
+{
+  "name": "couch-migrate",
+  "version": "0.1.0",
+  "description": "View based CouchDB migration utility. Handles batching and conflict retries.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node_modules/.bin/mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/eirikurn/couch-migration.git"
+  },
+  "keywords": [
+    "couchdb",
+    "migration",
+    "batching"
+  ],
+  "author": "Eirikur Nilsson <eirikur@nilsson.is>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/eirikurn/couch-migration/issues"
+  },
+  "dependencies": {
+    "lodash": "~2.3.0",
+    "async": "~0.2.9"
+  },
+  "peerDependencies": {
+    "restify": "~2.6.0"
+  }
+}
