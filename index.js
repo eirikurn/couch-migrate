@@ -1,5 +1,6 @@
 'use strict';
 var async = require('async');
+var ProgressBar = require('progress');
 var _ = require('lodash');
 
 /**
@@ -29,9 +30,10 @@ module.exports = function(options) {
   var fetchKeysFn = wrapAsync(options.fetchKeys || function(key, cb) {cb();}, 1);
   var changesFn = wrapAsync(options.changes, 2);
   var retries = options.retryConflicts === false ? 0 : options.retryConflicts || 2;
+  var progress = new ProgressBar('Batch :batch, :total rows |:bar| Total :realcurrent rows migrated', {stream: process.stderr, width: 15, total: 1});
+  var progressTokens = {realcurrent: 0, batch: 0};
 
   getViewInBatches(db, sourceDesignDoc, sourceView, sourceParams, 1000, function(rows, cb) {
-    console.log(rows.length);
     if (options.sourceFilter) {
       rows = rows.filter(function(row) {
         try {
@@ -42,7 +44,10 @@ module.exports = function(options) {
         }
       });
     }
-    console.log(rows.length);
+    progressTokens.batch++;
+    progress.total = rows.length;
+    progress.curr = 0;
+    progress.tick(0, progressTokens);
 
     var count = 0;
     async.whilst(function() { return count < rows.length; },
@@ -109,6 +114,11 @@ module.exports = function(options) {
           newBatch.push(batch[i]);
         }
       }
+
+      var success = batch.length - newBatch.length;
+      progressTokens.realcurrent += success;
+      progress.tick(success, progressTokens);
+
       if (newBatch.length) {
         if (retry >= retries) {
           newBatch.forEach(function(row) { reportFailure(row, 'Conflict'); });
