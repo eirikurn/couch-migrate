@@ -34,6 +34,8 @@ module.exports = function(options) {
   var progressTokens = {realcurrent: 0, batch: 0};
 
   getViewInBatches(db, sourceDesignDoc, sourceView, sourceParams, 1000, function(rows, cb) {
+    progressTokens.batch++;
+
     if (options.sourceFilter) {
       rows = rows.filter(function(row) {
         try {
@@ -44,7 +46,13 @@ module.exports = function(options) {
         }
       });
     }
-    progressTokens.batch++;
+
+    // Quickfix: node progress doesn't support a total of 0.
+    // I'd prefer it to be fixed there so we can log the batch. 
+    if (rows.length === 0) {
+      return cb();
+    }
+
     progress.total = rows.length;
     progress.curr = 0;
     progress.tick(0, progressTokens);
