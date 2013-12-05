@@ -1,6 +1,6 @@
 {
   "name": "couch-migrate",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "View based CouchDB migration utility. Handles batching and conflict retries.",
   "main": "index.js",
   "scripts": {
