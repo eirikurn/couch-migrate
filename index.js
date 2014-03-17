@@ -26,6 +26,7 @@ module.exports = function(options) {
   var sourceView = options.sourceView;
   var sourceParams = options.sourceParams || {};
   var batchSize = options.batchSize || 20;
+  var limit = options.limit;
   var complete = options.complete || defaultComplete;
   var fetchKeysFn = wrapAsync(options.fetchKeys || function(key, cb) {cb();}, 1);
   var changesFn = wrapAsync(options.changes, 2);
@@ -33,7 +34,7 @@ module.exports = function(options) {
   var progress = new ProgressBar('Batch :batch, :total rows |:bar| Total :realcurrent rows migrated', {stream: process.stderr, width: 15, total: 1});
   var progressTokens = {realcurrent: 0, batch: 0};
 
-  getViewInBatches(db, sourceDesignDoc, sourceView, sourceParams, 1000, function(rows, cb) {
+  getViewInBatches(db, sourceDesignDoc, sourceView, sourceParams, 1000, function(rows, nextBatch) {
     progressTokens.batch++;
 
     if (options.sourceFilter) {
@@ -42,15 +43,23 @@ module.exports = function(options) {
           return options.sourceFilter(row);
         } catch(err) {
           reportFailure(row, err);
-          return true;
+          return false;
         }
       });
+    }
+
+    if (limit != null) {
+      limit -= rows.length;
+      if (limit < 0) {
+        rows = rows.slice(0, rows.length + limit);
+        limit = 0;
+      }
     }
 
     // Quickfix: node progress doesn't support a total of 0.
     // I'd prefer it to be fixed there so we can log the batch. 
     if (rows.length === 0) {
-      return cb();
+      return nextBatch();
     }
 
     progress.total = rows.length;
@@ -63,7 +72,7 @@ module.exports = function(options) {
         var batch = rows.slice(count, count + batchSize);
         count += batchSize;
         getExtraKeyInfo(batch, cb);
-      }, cb);
+      }, limit === 0 ? complete : nextBatch);
   }, complete);
 
   function getExtraKeyInfo(batch, cb) {
