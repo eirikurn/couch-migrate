@@ -27,6 +27,7 @@ module.exports = function(options) {
   var sourceParams = options.sourceParams || {};
   var batchSize = options.batchSize || 20;
   var limit = options.limit;
+  var verbose = options.verbose;
   var complete = options.complete || defaultComplete;
   var fetchKeysFn = wrapAsync(options.fetchKeys || function(key, cb) {cb();}, 1);
   var changesFn = wrapAsync(options.changes, 2);
@@ -113,7 +114,8 @@ module.exports = function(options) {
         db.bulk({docs: allChanges}, function(err, results) {
           if (err) {return cb(err); }
 
-          processErrors(unflatten(results, _.map(changes, 'length')));
+          results = unflatten(results, _.map(changes, 'length'));
+          processErrors(_.zip(batch, changes, results));
         });
       });
     }
@@ -125,10 +127,14 @@ module.exports = function(options) {
      * @returns {*}
      */
     function processErrors(results) {
+      if (verbose) {
+        logResults(results);
+      }
+
       var newBatch = [];
       for (var i = 0, r; r = results[i]; i++) {
-        if (_.find(r, {error: 'conflict'})) {
-          newBatch.push(batch[i]);
+        if (_.find(r[2], {error: 'conflict'})) {
+          newBatch.push(r[0]);
         }
       }
 
@@ -154,6 +160,24 @@ module.exports = function(options) {
   }
 };
 
+function logResults(results) {
+  results.forEach(function(result) {
+    var changes = result[1];
+    var responses = result[2];
+    if (changes.length === 0) { return; }
+
+    console.log(new Array(81).join('='));
+    console.log('Input:', result[0].key);
+
+    for (var i = 0, c; c = changes[i]; i++) {
+      var verb = c._deleted ? 'Deleting' :
+        c._rev ? 'Updating' : 'Creating';
+      var status = responses[i].reason || 'Ok.';
+
+      console.log(verb, c._id, '...', status);
+    }
+  });
+}
 
 /**
  * Wraps a function so it is async. Only if it doesn't
